@@ -165,7 +165,6 @@ class StyTrans(nn.Module):
         return results[1:]
 
     def calc_content_loss(self, input, target):
-      #print(input.size(), target.size())
       assert (input.size() == target.size())
       assert (target.requires_grad is False)
       return self.mse_loss(input, target)
@@ -189,8 +188,7 @@ class StyTrans(nn.Module):
             samples_c = nested_tensor_from_tensor_list(samples_c)   # support different-sized images padding is used for mask [tensor, mask] 
         if isinstance(samples_s, (list, torch.Tensor)):
             samples_s = nested_tensor_from_tensor_list(samples_s) 
-        
-        # ### features used to calcate loss 
+        ### features used to calcate loss 
         content_feats = self.encode_with_intermediate(samples_c.tensors)
         style_feats = self.encode_with_intermediate(samples_s.tensors)
 
@@ -203,13 +201,11 @@ class StyTrans(nn.Module):
         pos_c = None
 
         mask = None
-        hs = self.transformer(style, mask , content, pos_c, pos_s)   
+        hs = self.transformer(style, mask, content, pos_c, pos_s)
         Ics = self.decode(hs)
-
         Ics_feats = self.encode_with_intermediate(Ics)
-        #print("here")
+        
         loss_c = self.calc_content_loss(normal(Ics_feats[-1]), normal(content_feats[-1]))+self.calc_content_loss(normal(Ics_feats[-2]), normal(content_feats[-2]))
-        #print("hereasdasdas")
         # Style loss
         loss_s = self.calc_style_loss(Ics_feats[0], style_feats[0])
         for i in range(1, 5):

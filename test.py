@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import os
+import math
 import glob
 import torch
 import torch.nn as nn
@@ -18,33 +19,14 @@ from function import normal
 import numpy as np
 import time
 import cv2
-def test_transform(size, crop):
+
+def test_transform(width_new, height_new):
     transform_list = []
-   
-    if size != 0: 
-        transform_list.append(transforms.Resize(size))
-    if crop:
-        transform_list.append(transforms.CenterCrop(size))
+    if width_new and height_new: 
+        transform_list.append(transforms.Resize((height_new, width_new)))
     transform_list.append(transforms.ToTensor())
     transform = transforms.Compose(transform_list)
     return transform
-def style_transform(h,w):
-    k = (h,w)
-    size = int(np.max(k))
-    transform_list = []    
-    transform_list.append(transforms.CenterCrop((h,w)))
-    transform_list.append(transforms.ToTensor())
-    transform = transforms.Compose(transform_list)
-    return transform
-
-def content_transform():
-    
-    transform_list = []   
-    transform_list.append(transforms.ToTensor())
-    transform = transforms.Compose(transform_list)
-    return transform
-
-  
 
 parser = argparse.ArgumentParser()
 # Basic options
@@ -167,37 +149,47 @@ def expand2square(pil_img, background_color):
         result.paste(pil_img, ((height - width) // 2, 0))
         return result
 
-def process_img(content_path, style_path, frame=None):
-    width_c, height_c = Image.open(content_path).size
-    print(width_c, height_c)
-    size_max = max(width_c, height_c)
-    if size_max % 64 != 0:
+def resize_shape(width, height):
+    res_width = width
+    res_height = height
+    if width % 64 != 0:
         start = 64
-        while start < size_max:
+        while start < width:
             start += 64
-        size_max = start
-    content_im = expand2square(Image.open(content_path).convert("RGB"), (0, 0, 0)).resize((size_max, size_max), Image.LANCZOS)
+        res_width = start
+    if height % 64 != 0:
+        start = 64
+        while start < height:
+            start += 64
+        res_height = start
+    return res_width, res_height
+        
+def process_img(content_path, style_path, frame=None):
+    content_im = Image.open(content_path)
+    width_ori, height_ori = content_im.size
+    width_new, height_new = resize_shape(width_ori, height_ori)
+    
+    #print(width_ori, height_ori, width_new, height_new)
     style_im = Image.open(style_path).convert("RGB")
-    content_tf = test_transform(size_max, size_max)
-    style_tf = test_transform(size_max, size_max)
-    content_tf1 = content_transform()   
+    content_tf = test_transform(width_new, height_new)
+    style_tf = test_transform(width_new, height_new)
+      
     if frame:
         content = content_tf(frame)
     else:
         content = content_tf(content_im)
 
     h,w,c=np.shape(content)    
-    print(h, w, c)
-    style_tf1 = style_transform(h,w)
+    
     style = style_tf(style_im)
-    print(style.shape)
-  
+    #print("Content Shape:", content.shape)
+    #print("Style Shape:", style.shape)
     style = style.to(device).unsqueeze(0)
     content = content.to(device).unsqueeze(0)
     
         
     with torch.no_grad():
-        output = network(content,style)[0]    
+        output = network(content,style)[0]
         output = output.cpu()
     #print(output.shape)
     if frame:
@@ -210,20 +202,11 @@ def process_img(content_path, style_path, frame=None):
             output_path, splitext(basename(content_path))[0],
             splitext(basename(style_path))[0], save_ext
         )
-        print(output.shape, "!!!!")
-        print(width_c, height_c)
-        if width_c > height_c:
-            start = (width_c - height_c) // 2
-            #print(start, start + width_c)
-            output = output[:, :, start : (start + height_c), :]
-        else:
-            start = (height_c - width_c) // 2
-            output = output[:, :, :, start : (start + width_c)]
-        print(output.shape, "!!!!")
-        save_image(output, output_name)
+        transform = transforms.ToPILImage()
+        img = transform(output[0])
+        img = img.resize((width_ori, height_ori))
+        img.save(output_name)
         return None
-    
-
 
 count_vids = 0
 for content_path in content_paths:

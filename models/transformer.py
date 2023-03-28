@@ -16,7 +16,6 @@ class Transformer(nn.Module):
                  activation="relu", normalize_before=False,
                  return_intermediate_dec=False):
         super().__init__()
-
         encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward,
                                                 dropout, activation, normalize_before)
         encoder_norm = nn.LayerNorm(d_model) if normalize_before else None
@@ -43,12 +42,11 @@ class Transformer(nn.Module):
                 nn.init.xavier_uniform_(p)
 
     def forward(self, style, mask , content, pos_embed_c, pos_embed_s):
-
         # content-aware positional embedding
         content_pool = self.averagepooling(content)       
         pos_c = self.new_ps(content_pool)
         pos_embed_c = F.interpolate(pos_c, mode='bilinear',size= style.shape[-2:])
-
+        _, _, H, W = style.shape # record the correct shape
         ###flatten NxCxHxW to HWxNxC     
         style = style.flatten(2).permute(2, 0, 1)
         if pos_embed_s is not None:
@@ -63,13 +61,11 @@ class Transformer(nn.Module):
         content = self.encoder_c(content, src_key_padding_mask=mask, pos=pos_embed_c)
         hs = self.decoder(content, style, memory_key_padding_mask=mask,
                           pos=pos_embed_s, query_pos=pos_embed_c)[0]
-        
-        ### HWxNxC to NxCxHxW to
+        ### HxWxNxC to NxCxHxW
         N, B, C= hs.shape          
-        H = int(np.sqrt(N))
+        
         hs = hs.permute(1, 2, 0)
-        hs = hs.view(B, C, -1,H)
-
+        hs = hs.view(B, C, H, W)
         return hs
 
 
