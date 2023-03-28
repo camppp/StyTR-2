@@ -47,8 +47,10 @@ class Transformer(nn.Module):
         pos_c = self.new_ps(content_pool)
         pos_embed_c = F.interpolate(pos_c, mode='bilinear',size= style.shape[-2:])
         _, _, H, W = style.shape # record the correct shape
-        ###flatten NxCxHxW to HWxNxC     
+        ###flatten NxCxHxW to HWxNxC   
+        #print(content.shape, style.shape)        
         style = style.flatten(2).permute(2, 0, 1)
+        #print(style.shape)   
         if pos_embed_s is not None:
             pos_embed_s = pos_embed_s.flatten(2).permute(2, 0, 1)
       
@@ -66,6 +68,7 @@ class Transformer(nn.Module):
         
         hs = hs.permute(1, 2, 0)
         hs = hs.view(B, C, H, W)
+        #print(hs.shape)
         return hs
 
 

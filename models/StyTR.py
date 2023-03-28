@@ -1,4 +1,5 @@
 import torch
+import gc
 import torch.nn.functional as F
 from torch import nn
 import numpy as np
@@ -184,6 +185,7 @@ class StyTrans(nn.Module):
         """
         content_input = samples_c
         style_input = samples_s
+        
         if isinstance(samples_c, (list, torch.Tensor)):
             samples_c = nested_tensor_from_tensor_list(samples_c)   # support different-sized images padding is used for mask [tensor, mask] 
         if isinstance(samples_s, (list, torch.Tensor)):
@@ -191,7 +193,7 @@ class StyTrans(nn.Module):
         ### features used to calcate loss 
         content_feats = self.encode_with_intermediate(samples_c.tensors)
         style_feats = self.encode_with_intermediate(samples_s.tensors)
-
+        #print(samples_c.tensors.shape, samples_c.tensors.shape)
         ### Linear projection
         style = self.embedding(samples_s.tensors)
         content = self.embedding(samples_c.tensors)
@@ -225,5 +227,7 @@ class StyTrans(nn.Module):
         for i in range(1, 5):
             loss_lambda2 += self.calc_content_loss(Icc_feats[i], content_feats[i])+self.calc_content_loss(Iss_feats[i], style_feats[i])
         # Please select and comment out one of the following two sentences
+        gc.collect()
+        torch.cuda.empty_cache()
         return Ics,  loss_c, loss_s, loss_lambda1, loss_lambda2   #train
         # return Ics    #test 

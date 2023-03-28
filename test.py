@@ -81,7 +81,10 @@ if args.content:
     content_paths = [Path(args.content)]
 else:
     content_dir = Path(args.content_dir)
-    content_paths = [f for f in content_dir.glob('*')]
+    if args.out_vid:
+        content_paths = [f for f in content_dir.glob('*.mp4')]
+    else:
+        content_paths = [f for f in content_dir.glob('*.jpg')]
 
 # Either --style or --style_dir should be given.
 if args.style:
@@ -165,20 +168,21 @@ def resize_shape(width, height):
     return res_width, res_height
         
 def process_img(content_path, style_path, frame=None):
-    content_im = Image.open(content_path)
-    width_ori, height_ori = content_im.size
-    width_new, height_new = resize_shape(width_ori, height_ori)
-    
+    if frame:
+        width_ori, height_ori = frame.size
+        width_new, height_new = resize_shape(width_ori, height_ori)
+        content_tf = test_transform(width_new, height_new)
+        content = content_tf(frame.convert("RGB"))
+    else:
+        img = Image.open(content_path)
+        width_ori, height_ori = img.size
+        width_new, height_new = resize_shape(width_ori, height_ori)
+        content_tf = test_transform(width_new, height_new)
+        content = content_tf(img.convert("RGB"))
     #print(width_ori, height_ori, width_new, height_new)
     style_im = Image.open(style_path).convert("RGB")
-    content_tf = test_transform(width_new, height_new)
+    
     style_tf = test_transform(width_new, height_new)
-      
-    if frame:
-        content = content_tf(frame)
-    else:
-        content = content_tf(content_im)
-
     h,w,c=np.shape(content)    
     
     style = style_tf(style_im)
@@ -186,7 +190,7 @@ def process_img(content_path, style_path, frame=None):
     #print("Style Shape:", style.shape)
     style = style.to(device).unsqueeze(0)
     content = content.to(device).unsqueeze(0)
-    
+    #print(content.shape, style.shape)
         
     with torch.no_grad():
         output = network(content,style)[0]
@@ -218,8 +222,10 @@ for content_path in content_paths:
             print("FPS:", fps)
             frameNr = 0
             count_vids += 1
-            width, height = Image.open(style_path).size
-            print("Video Shape:", height, width)
+            width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)  
+            height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+            #print("Video Shape:", height, width)
             video = cv2.VideoWriter(str(output_path) + "/result_" + str(count_vids) + ".mp4", cv2.VideoWriter_fourcc(*'mp4v'), fps, (content_size,content_size))
             
             while (True):
@@ -228,6 +234,7 @@ for content_path in content_paths:
                 if success:
                     # frame: uint8
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    
                     im_pil = Image.fromarray(frame)
                     #processing
                     temp = process_img(content_path, style_path, im_pil)
