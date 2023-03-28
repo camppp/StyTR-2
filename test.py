@@ -1,13 +1,14 @@
 import argparse
 from pathlib import Path
 import os
+import glob
 import torch
 import torch.nn as nn
 from PIL import Image
 from os.path import basename
 from os.path import splitext
 from torchvision import transforms
-from torchvision.utils import save_image
+from torchvision.utils import save_image, make_grid
 from function import calc_mean_std, normal, coral
 import models.transformer as transformer
 import models.StyTR as StyTR
@@ -16,6 +17,7 @@ from matplotlib import cm
 from function import normal
 import numpy as np
 import time
+import cv2
 def test_transform(size, crop):
     transform_list = []
    
@@ -29,7 +31,6 @@ def test_transform(size, crop):
 def style_transform(h,w):
     k = (h,w)
     size = int(np.max(k))
-    print(type(size))
     transform_list = []    
     transform_list.append(transforms.CenterCrop((h,w)))
     transform_list.append(transforms.ToTensor())
@@ -63,7 +64,10 @@ parser.add_argument('--vgg', type=str, default='./experiments/vgg_normalised.pth
 parser.add_argument('--decoder_path', type=str, default='experiments/decoder_iter_160000.pth')
 parser.add_argument('--Trans_path', type=str, default='experiments/transformer_iter_160000.pth')
 parser.add_argument('--embedding_path', type=str, default='experiments/embedding_iter_160000.pth')
-
+parser.add_argument('--out_vid', type=str,
+                    help='Flag representing if going to generate video')
+parser.add_argument('--out_vid_dir', type=str,
+                    help='Directory path to output the video')
 
 parser.add_argument('--style_interpolation_weights', type=str, default="")
 parser.add_argument('--a', type=float, default=1.0)
@@ -88,7 +92,7 @@ alpha=args.a
 
 
 
-device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Either --content or --content_dir should be given.
 if args.content:
@@ -121,6 +125,7 @@ Trans.eval()
 vgg.eval()
 from collections import OrderedDict
 new_state_dict = OrderedDict()
+
 state_dict = torch.load(args.decoder_path)
 for k, v in state_dict.items():
     #namekey = k[7:] # remove `module.`
@@ -146,38 +151,92 @@ embedding.load_state_dict(new_state_dict)
 
 network = StyTR.StyTrans(vgg,decoder,embedding,Trans,args)
 network.eval()
+
 network.to(device)
 
+def process_img(content_path, style_path, frame=None):
 
-
-content_tf = test_transform(content_size, crop)
-style_tf = test_transform(style_size, crop)
-
-for content_path in content_paths:
-    for style_path in style_paths:
-        print(content_path)
-       
-      
-        content_tf1 = content_transform()       
+    content_tf1 = content_transform()   
+    if frame:
+        content = content_tf(frame)
+    else:
         content = content_tf(Image.open(content_path).convert("RGB"))
 
-        h,w,c=np.shape(content)    
-        style_tf1 = style_transform(h,w)
-        style = style_tf(Image.open(style_path).convert("RGB"))
+    h,w,c=np.shape(content)    
+    # print(h, w, c)
+    style_tf1 = style_transform(h,w)
+    style = style_tf(Image.open(style_path).convert("RGB"))
 
-      
-        style = style.to(device).unsqueeze(0)
-        content = content.to(device).unsqueeze(0)
+  
+    style = style.to(device).unsqueeze(0)
+    content = content.to(device).unsqueeze(0)
+    
         
-        with torch.no_grad():
-            output= network(content,style)       
+    with torch.no_grad():
+        output = network(content,style)[0]    
         output = output.cpu()
-                
+    #print(output.shape)
+    if frame:
+        # trans = transforms.ToPILImage()
+        grid = make_grid(output[0],normalize = True)
+        return grid
+        # return trans(output[0])
+    else:
         output_name = '{:s}/{:s}_stylized_{:s}{:s}'.format(
             output_path, splitext(basename(content_path))[0],
             splitext(basename(style_path))[0], save_ext
         )
- 
+        
         save_image(output, output_name)
+        return None
+    
+
+content_tf = test_transform(content_size, crop)
+style_tf = test_transform(style_size, crop)
+count_vids = 0
+for content_path in content_paths:
+    for style_path in style_paths:
+        print(content_path, style_path)
+        if args.out_vid == "true":
+            capture = cv2.VideoCapture(str(content_path))
+            fps = capture.get(cv2.CAP_PROP_FPS)
+            print("FPS:", fps)
+            frameNr = 0
+            count_vids += 1
+            width, height = Image.open(style_path).size
+            print("Video Shape:", height, width)
+            video = cv2.VideoWriter(str(output_path) + "/result_" + str(count_vids) + ".mp4", cv2.VideoWriter_fourcc(*'mp4v'), fps, (content_size,content_size))
+            
+            while (True):
+                print(frameNr)
+                success, frame = capture.read()
+                if success:
+                    # frame: uint8
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    im_pil = Image.fromarray(frame)
+                    #processing
+                    temp = process_img(content_path, style_path, im_pil)
+                    #1,0;3,512,512
+                    temp = transforms.ToPILImage()(temp)
+                    temp = np.array(temp)
+                    im_write = cv2.cvtColor(temp, cv2.COLOR_RGB2BGR) 
+                    # 
+
+                    # 512,512,3
+                    # uint8
+                    # clip or rgb here
+                    video.write(im_write)
+                else:
+                    break
+                frameNr = frameNr+1
+            
+            cv2.destroyAllWindows()
+            video.release()
+            capture.release()
+            
+        else:
+            process_img(content_path, style_path)
+print('end')
+
    
 
