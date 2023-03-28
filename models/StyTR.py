@@ -165,6 +165,7 @@ class StyTrans(nn.Module):
         return results[1:]
 
     def calc_content_loss(self, input, target):
+      #print(input.size(), target.size())
       assert (input.size() == target.size())
       assert (target.requires_grad is False)
       return self.mse_loss(input, target)
@@ -206,7 +207,9 @@ class StyTrans(nn.Module):
         Ics = self.decode(hs)
 
         Ics_feats = self.encode_with_intermediate(Ics)
+        #print("here")
         loss_c = self.calc_content_loss(normal(Ics_feats[-1]), normal(content_feats[-1]))+self.calc_content_loss(normal(Ics_feats[-2]), normal(content_feats[-2]))
+        #print("hereasdasdas")
         # Style loss
         loss_s = self.calc_style_loss(Ics_feats[0], style_feats[0])
         for i in range(1, 5):

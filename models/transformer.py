@@ -7,7 +7,7 @@ from torch import nn, Tensor
 from function import normal,normal_style
 import numpy as np
 import os
-device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 os.environ["CUDA_VISIBLE_DEVICES"] = "2, 3"
 class Transformer(nn.Module):
 

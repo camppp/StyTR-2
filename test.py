@@ -154,19 +154,43 @@ network.eval()
 
 network.to(device)
 
-def process_img(content_path, style_path, frame=None):
+def expand2square(pil_img, background_color):
+    width, height = pil_img.size
+    if width == height:
+        return pil_img
+    elif width > height:
+        result = Image.new(pil_img.mode, (width, width), background_color)
+        result.paste(pil_img, (0, (width - height) // 2))
+        return result
+    else:
+        result = Image.new(pil_img.mode, (height, height), background_color)
+        result.paste(pil_img, ((height - width) // 2, 0))
+        return result
 
+def process_img(content_path, style_path, frame=None):
+    width_c, height_c = Image.open(content_path).size
+    print(width_c, height_c)
+    size_max = max(width_c, height_c)
+    if size_max % 64 != 0:
+        start = 64
+        while start < size_max:
+            start += 64
+        size_max = start
+    content_im = expand2square(Image.open(content_path).convert("RGB"), (0, 0, 0)).resize((size_max, size_max), Image.LANCZOS)
+    style_im = Image.open(style_path).convert("RGB")
+    content_tf = test_transform(size_max, size_max)
+    style_tf = test_transform(size_max, size_max)
     content_tf1 = content_transform()   
     if frame:
         content = content_tf(frame)
     else:
-        content = content_tf(Image.open(content_path).convert("RGB"))
+        content = content_tf(content_im)
 
     h,w,c=np.shape(content)    
-    # print(h, w, c)
+    print(h, w, c)
     style_tf1 = style_transform(h,w)
-    style = style_tf(Image.open(style_path).convert("RGB"))
-
+    style = style_tf(style_im)
+    print(style.shape)
   
     style = style.to(device).unsqueeze(0)
     content = content.to(device).unsqueeze(0)
@@ -186,13 +210,21 @@ def process_img(content_path, style_path, frame=None):
             output_path, splitext(basename(content_path))[0],
             splitext(basename(style_path))[0], save_ext
         )
-        
+        print(output.shape, "!!!!")
+        print(width_c, height_c)
+        if width_c > height_c:
+            start = (width_c - height_c) // 2
+            #print(start, start + width_c)
+            output = output[:, :, start : (start + height_c), :]
+        else:
+            start = (height_c - width_c) // 2
+            output = output[:, :, :, start : (start + width_c)]
+        print(output.shape, "!!!!")
         save_image(output, output_name)
         return None
     
 
-content_tf = test_transform(content_size, crop)
-style_tf = test_transform(style_size, crop)
+
 count_vids = 0
 for content_path in content_paths:
     for style_path in style_paths:
