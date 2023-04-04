@@ -222,11 +222,11 @@ for content_path in content_paths:
             print("FPS:", fps)
             frameNr = 0
             count_vids += 1
-            width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)  
-            height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
-
-            #print("Video Shape:", height, width)
-            video = cv2.VideoWriter(str(output_path) + "/result_" + str(count_vids) + ".mp4", cv2.VideoWriter_fourcc(*'mp4v'), fps, (content_size,content_size))
+            width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            #width, height = resize_shape(width, height)
+            print("Video Shape:", width, height)
+            video = cv2.VideoWriter(str(output_path) + "/result_" + str(count_vids) + ".mp4", cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
             
             while (True):
                 print(frameNr)
@@ -242,6 +242,7 @@ for content_path in content_paths:
                     temp = transforms.ToPILImage()(temp)
                     temp = np.array(temp)
                     im_write = cv2.cvtColor(temp, cv2.COLOR_RGB2BGR) 
+                    im_write = cv2.resize(im_write, (width, height))
                     # 
 
                     # 512,512,3
