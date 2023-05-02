@@ -9,6 +9,7 @@ import numpy as np
 import os
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 os.environ["CUDA_VISIBLE_DEVICES"] = "2, 3"
+test_original = False
 class Transformer(nn.Module):
 
     def __init__(self, d_model=512, nhead=8, num_encoder_layers=3,
@@ -45,8 +46,9 @@ class Transformer(nn.Module):
         # content-aware positional embedding
         content_pool = self.averagepooling(content)       
         pos_c = self.new_ps(content_pool)
-        pos_embed_c = F.interpolate(pos_c, mode='bilinear',size= style.shape[-2:])
-        _, _, H, W = style.shape # record the correct shape
+        pos_embed_c = F.interpolate(pos_c, mode='bilinear',size= style.shape[-2:],align_corners=False)
+        if not test_original:
+            _, _, H, W = style.shape # record the correct shape
         ###flatten NxCxHxW to HWxNxC   
         #print(content.shape, style.shape)        
         style = style.flatten(2).permute(2, 0, 1)
@@ -64,10 +66,17 @@ class Transformer(nn.Module):
         hs = self.decoder(content, style, memory_key_padding_mask=mask,
                           pos=pos_embed_s, query_pos=pos_embed_c)[0]
         ### HxWxNxC to NxCxHxW
-        N, B, C= hs.shape          
-        
-        hs = hs.permute(1, 2, 0)
-        hs = hs.view(B, C, H, W)
+        if test_original:
+            #print("----Original Transformer----")
+            N, B, C= hs.shape          
+            H = int(np.sqrt(N))
+            hs = hs.permute(1, 2, 0)
+            hs = hs.view(B, C, -1,H)
+        else:
+            #print("----Modified Transformer----")
+            N, B, C= hs.shape          
+            hs = hs.permute(1, 2, 0)
+            hs = hs.view(B, C, H, W)
         #print(hs.shape)
         return hs
 
