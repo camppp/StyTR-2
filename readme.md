@@ -1,8 +1,4 @@
-# StyTr^2 : Image Style Transfer with Transformers（CVPR2022）
-*Authors: [Yingying Deng](https://diyiiyiii.github.io/), Fan Tang, XingjiaPan, Weiming Dong, Chongyang Ma, Changsheng Xu*
-
-This paper is proposed to achieve unbiased image style transfer based on the transformer model. We can promote the stylization effect compared with state-of-the-art methods.
-This repository is the official implementation of [SyTr^2 : Image Style Transfer with Transformers](https://arxiv.org/abs/2105.14576).
+# StyTr^2 : Image Style Transfer with Transformers
 
 ## Results presentation 
 <p align="center">
