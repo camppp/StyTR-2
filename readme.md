@@ -1,17 +1,19 @@
-# StyTr^2 : Image Style Transfer with Transformers
+# Image Style Transfer with Transformers
 
 ## Results presentation 
 <p align="center">
 <img src="https://github.com/diyiiyiii/StyTR-2/blob/main/Figure/Unbiased.png" width="90%" height="90%">
 </p>
-Compared with some state-of-the-art algorithms, our method has a strong ability to avoid content leakage and has better feature representation ability.  <br>
-
+Compared with some state-of-the-art algorithms, our method has a strong ability to avoid content leakage and has better feature representation ability.  
+We improve upon the original paper by introducing new mechanisms for positional encoding. We also greatly simplified the model structure and provided support for arbitrary input dimensions
+In addition, we implemented a desktop application that enables applying this style transfer model to videos. <br>
 
 ## Framework
 <p align="center">
 <img src="https://github.com/diyiiyiii/StyTR-2/blob/main/Figure/network.png" width="100%" height="100%">
 </p> 
 The overall pipeline of our StyTr^2 framework. We split the content and style images into patches, and use a linear projection to obtain image sequences. Then the content sequences added with CAPE are fed into the content transformer encoder, while the style sequences are fed into the style transformer encoder. Following the two transformer encoders, a multi-layer transformer decoder is adopted to stylize the content sequences according to the style sequences. Finally, we use a progressive upsampling decoder to obtain the stylized images with high-resolution.
+
 
 
 
