@@ -1,4 +1,4 @@
-# Image Style Transfer with Transformers [Project Report](http://www.lyuxuan.com/neural_style_transfer_paper.pdf)
+# Image Style Transfer with Transformers: [Project Report](http://www.lyuxuan.com/neural_style_transfer_paper.pdf)
 
 ## Results presentation 
 <p align="center">
